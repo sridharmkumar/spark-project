@@ -1,9 +1,9 @@
 <component name="libraryTable">
   <library name="spark-ext-libraries">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../../../dev/lib/mysql-connector-java-5.1.44.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../../dev/lib/spark-avro_2.11-4.0.0.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../../dev/lib/spark-xml_2.11-0.12.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../../../dev/spark-ext-jars/mysql-connector-java-5.1.44.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../../../dev/spark-ext-jars/spark-avro_2.11-4.0.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../../../dev/spark-ext-jars/spark-xml_2.11-0.12.0.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

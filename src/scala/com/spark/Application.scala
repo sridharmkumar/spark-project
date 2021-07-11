@@ -25,26 +25,35 @@ object Application {
 
     println
     println
-    println("----- Step 1 : Retrieving Raw Data -----")
+    println("----- Step 1 : Retrieving AVRO Data -----")
     val yesterday = ZonedDateTime.now(ZoneId.of("UTC")).minusDays(1)
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val previousDate = formatter format yesterday
+    val yesterdayDate = formatter format yesterday
 
-    val inputData = spark.read.format("com.databricks.spark.avro").load(s"hdfs:/user/cloudera/data/$previousDate")
-    inputData.show()
+    println("Yesterday's Date : " + yesterdayDate)
+
+    val avroData = spark.read.format("com.databricks.spark.avro").load(s"hdfs:/user/cloudera/data/$yesterdayDate")
+    println("AVRO Schema:")
+    avroData.printSchema()
+
+    println("AVRO Data:")
+    avroData.show(5)
 
     println
-    println
-    println("----- Step 2 : Retrieving API Data -----")
+    println("----- Step 2 : Retrieving WebAPI Data -----")
     val apiUrl = "https://randomuser.me/api/0.8/?results=200"
     val apiResponse = Source.fromURL(apiUrl).mkString
-    val apiDataFrame = spark.read.json(sc.parallelize(List(apiResponse)))
-    apiDataFrame.show()
+    val webData = spark.read.json(sc.parallelize(List(apiResponse)))
+
+    println("Web Data Schema:")
+    webData.printSchema()
+
+    println("Web Data:")
+    webData.show(5)
 
     println
-    println
-    println("----- Step 3 : Preparing Flatten Data -----")
-    val flattenData = apiDataFrame.withColumn("results", explode(col("results")))
+    println("----- Step 3 : Flattening WebAPI Data -----")
+    val flattenData = webData.withColumn("results", explode(col("results")))
       .select(
         col("nationality"),
         col("results.user.username"),
@@ -70,45 +79,44 @@ object Application {
         col("results.user.sha1"),
         col("results.user.sha256")
       )
-    flattenData.show()
+
+    println("Flatten Web Data Schema:")
+    webData.printSchema()
+
+    println("Flatten Web Data:")
+    flattenData.show(5)
 
     println
-    println
-    println("----- Step 4 : Remove Numerical from Username -----")
-    val replacedData = flattenData.withColumn("username", regexp_replace(col("username"), "([0-9])", ""))
-    replacedData.show()
+    println("----- Step 4 : Removing numerical from username column -----")
+    val processedData = flattenData.withColumn("username", regexp_replace(col("username"), "([0-9])", ""))
+    processedData.show(5)
 
     println
-    println
-    println("----- Step 5 : Joining DataFrames -----")
-    val joinData = inputData.join(broadcast(replacedData), Seq("username"), "left")
-    joinData.show()
+    println("----- Step 5 : Joining AVRO & WebAPI Data -----")
+    val consolidatedData = avroData.join(broadcast(processedData), Seq("username"), "left")
+    consolidatedData.show(5)
 
     println
-    println
-    println("----- Step 6 : Indexing DataFrame -----")
-    val indexedData = addColumnIndex(spark, joinData).withColumn("id", col("index")).drop("index")
+    println("----- Step 6 : Adding Index Column (ZipWithIndex) -----")
+    val indexedData = addColumnIndex(spark, consolidatedData).withColumn("id", col("index")).drop("index")
     indexedData.printSchema()
 
     println
-    println
-    println("----- Step 7 : Calculating Max Value -----")
+    println("----- Step 7 : Retrieving Max Value from Hive table -----")
     val maxValueDataFrame = spark.sql("select coalesce(max(id),0) from spark_project.spark_hive_customer")
     val maxValue = maxValueDataFrame.rdd.map(x => x.mkString("")).collect().mkString("").toInt
-    println("Max value : " + maxValue)
+    println("Max Value : " + maxValue)
 
     println
-    println
-    println("----- Step 8 : Processing Id Column with Max Value -----")
-    val resultDataFrame = indexedData.withColumn("id", col("id") + maxValue)
-    resultDataFrame.show()
+    println("----- Step 8 : Adding Max Value to ID Column -----")
+    val finalData = indexedData.withColumn("id", col("id") + maxValue)
+    finalData.show()
 
-    println
     println
     println("----- Step 9 : Saving to Hive Table -----")
-    resultDataFrame.write.format("hive").mode("append").saveAsTable("spark_project.spark_hive_customer")
+    finalData.write.format("hive").mode("append").saveAsTable("spark_project.spark_hive_customer")
     println
-    println("Successfully Completed!")
+    println("Final Result-set Successfully Written to Hive!!!")
   }
 
 
@@ -120,4 +128,4 @@ object Application {
       // Create schema for index column
       StructType(df.schema.fields :+ StructField("index", LongType, nullable = false)))
   }
-}
+} 
