@@ -1,10 +1,10 @@
 package com.spark
 
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, SparkSession, _}
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.hive.HiveContext
+import org.apache.spark.sql.types._
+import org.apache.spark.sql._
+import org.apache.spark.{SparkConf, SparkContext}
 
 import java.time._
 import java.time.format._
@@ -17,7 +17,6 @@ object Application {
     sc.setLogLevel("ERROR")
     val spark = SparkSession.builder().master("local[*]").enableHiveSupport()
       .config("hive.exec.dynamic.partition.mode", "nonstrict").appName("spark-project").getOrCreate()
-
     import spark.implicits._
 
     val hive = new HiveContext(sc)
